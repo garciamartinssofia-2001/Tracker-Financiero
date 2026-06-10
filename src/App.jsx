@@ -40,7 +40,7 @@ const TIPOS_INV = ["Cripto","Acciones","Plazo Fijo","Dólares","Bonos","CEDEARs"
 const TIPOS_VENC = ["Tarjeta de Crédito","Servicio","Impuesto","Préstamo","Suscripción","Otro"];
 
 const CUENTA_COLOR = { NX:"#a9646a", BBVA:"#5a3d3b", UALA:"#c98b90", Efectivo:"#2d8b5a", "Dólares":"#8B4A50" };
-const CAT_COLORS = ["#a9646a","#5a3d3b","#c98b90","#2d8b5a","#8B4A50","#7a4040","#e7b0b6","#c04848","#6d4a4d","#4a2e2c","#b07878","#3d6048","#d4a0a5","#7a5560","#5d3535"];
+const CAT_COLORS = ["#a9646a","#c98b90","#8B4A50","#e7b0b6","#5a3d3b","#d4a0a5","#7a4040","#f0c8cc","#b07878","#6d4a4d","#ddb8bc","#9a6468","#c48090","#7a5560","#e8c0c4"];
 const CAT_EMOJI = { Comida:"🍕", Super:"🛒", Auto:"🚗", Deporte:"🏋️", Regalos:"🎁", Servicios:"💡", Suscripción:"📱", Salidas:"🎭", Selfcare:"💆", Sube:"🚌", "UBER/DIDI":"🚕", Casita:"🏠", Verdulería:"🥬", "Tarjeta de Cred.":"💳", Otros:"📌", Sueldo:"💼", Inversión:"📈", Changas:"🔧", "Mov. entre cuentas":"🔄" };
 const INV_EMOJI = { Cripto:"₿", Acciones:"📊", "Plazo Fijo":"🏦", Dólares:"💵", Bonos:"📜", CEDEARs:"🌐", Otros:"💼" };
 const INV_COLOR = { Cripto:"#a9646a", Acciones:"#5a3d3b", "Plazo Fijo":"#2d8b5a", Dólares:"#8B4A50", Bonos:"#7a4040", CEDEARs:"#c98b90", Otros:"#9a7878" };
@@ -239,6 +239,7 @@ const SEED_PORTFOLIO_HISTORY = [
   {fecha:"2026-06-08",valor:361762},
   {fecha:"2026-06-09",valor:357088}, // Screenshot UALA 09/06
 ];
+const save = async (key, value) => { try { localStorage.setItem(key, JSON.stringify(value)); } catch(e) {} };
 const load = async (key, fallback) => { try { const r = localStorage.getItem(key); return r ? JSON.parse(r) : fallback; } catch(e) { return fallback; } };
 
 // ─── TOOLTIPS ────────────────────────────────────────────────────────────────
@@ -888,17 +889,18 @@ function InversionesView({ inversiones, onAdd, onDel, tipoCambio, onTipoCambioFe
 }
 // ─── MAIN APP ────────────────────────────────────────────────────────────────
 export default function App() {
-  const [gastos, setGastos] = useState([]);
-  const [ingresos, setIngresos] = useState([]);
-  const [saldos, setSaldos] = useState({});
-  const [inversiones, setInversiones] = useState([]);
-  const [vencimientos, setVencimientos] = useState([]);
+  // Inicializar con seed data de inmediato — sin esperar storage
+  const [gastos, setGastos] = useState(SEED_GASTOS);
+  const [ingresos, setIngresos] = useState(SEED_INGRESOS);
+  const [saldos, setSaldos] = useState(SEED_SALDOS);
+  const [inversiones, setInversiones] = useState(SEED_INVERSIONES);
+  const [vencimientos, setVencimientos] = useState(SEED_VENCIMIENTOS);
   const [view, setView] = useState("dashboard");
   const [form, setForm] = useState(null);
   const [mesIdx, setMesIdx] = useState(5);
   const [search, setSearch] = useState("");
   const [filterCuenta, setFilterCuenta] = useState("Todas");
-  const [loaded, setLoaded] = useState(false);
+  const [loaded, setLoaded] = useState(true); // Ya cargado con seeds
   const [editSaldo, setEditSaldo] = useState(null);
   const [tipoCambio, setTipoCambio] = useState(1465);
 
@@ -906,13 +908,15 @@ export default function App() {
 
   useEffect(() => {
     injectStyles();
+    // Cargar storage en segundo plano y actualizar si hay datos guardados
     (async () => {
-      setGastos(await load("gastos_v2",null) || SEED_GASTOS);
-      setIngresos(await load("ingresos_v2",null) || SEED_INGRESOS);
-      setSaldos(await load("saldos_v2",null) || SEED_SALDOS);
-      setInversiones(await load("inversiones_v3",null) || SEED_INVERSIONES);
-      setVencimientos(await load("vencimientos_v2",null) || SEED_VENCIMIENTOS);
-      setLoaded(true);
+      try {
+        const g = await load("gastos_v2", null); if(g) setGastos(g);
+        const i = await load("ingresos_v2", null); if(i) setIngresos(i);
+        const s = await load("saldos_v2", null); if(s) setSaldos(s);
+        const inv = await load("inversiones_v3", null); if(inv) setInversiones(inv);
+        const v = await load("vencimientos_v2", null); if(v) setVencimientos(v);
+      } catch(e) {}
     })();
   }, []);
 
@@ -965,8 +969,6 @@ export default function App() {
 
   const updateSaldo=(cuenta,field,value)=>{const k=`${cuenta}-${mes}`;setSaldos(prev=>({...prev,[k]:{...(prev[k]||{inicio:0,ajuste:0,nota:""}), [field]:value}}));};
   const alertasVenc = vencimientos.filter(v=>{const d=diasHasta(v.fecha);return d>=0&&d<=7;}).length;
-
-  if(!loaded) return <div style={{display:"flex",justifyContent:"center",alignItems:"center",height:"100vh",color:"#9a7878",fontFamily:"Plus Jakarta Sans",fontSize:14}}>Cargando...</div>;
 
   return (
     <div style={{maxWidth:430,margin:"0 auto",minHeight:"100vh",background:"#f2e6dc",paddingBottom:90}}>
